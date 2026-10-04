@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --cream: #faf8f3;
+  --ink: #111111;
+  --yellow: #ffd84a;
+  --blue: #2f5fa8;
+  --line: #d9d5ca;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --color-brand: var(--yellow);
+  --color-blue: var(--blue);
+  --color-line: var(--line);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 4.5rem;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
+
+.display {
+  font-weight: 900;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px; /* comfortable thumb target */
+  padding: 0 1.5rem;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  transition: transform 0.15s, background 0.15s, color 0.15s;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--yellow); }
+.btn-primary:hover { background: var(--ink); color: var(--yellow); }
+.btn-ghost:hover { background: var(--ink); color: var(--cream); }
+.btn:disabled { opacity: 0.4; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+
+/* Explorer hotspots: a soft ring so people notice they can tap */
+.hotspot-pulse { position: relative; }
+.hotspot-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  border: 2px solid var(--yellow);
+  animation: hotspot 2.2s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes hotspot {
+  0% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* Booked hours: struck through with stripes, like the current site */
+.slot-taken {
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--line) 6px 8px);
+  text-decoration: line-through;
+}
+
+/* Intro loader: hidden on repeat loads in the same session (see layout.tsx) */
+html[data-loaded] #loader { display: none; }

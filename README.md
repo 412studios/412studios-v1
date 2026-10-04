@@ -1,36 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 412 Studios
 
-## Getting Started
+Website for [412studios.ca](https://412studios.ca): book a session or buy a membership and pay online (Stripe), plus a walkthrough of the space built from pre-rendered 3D stills.
 
-First, run the development server:
+## Run it
 
 ```bash
+npm install
+cp .env.example .env.local   # add a Stripe TEST key (sk_test_...)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Where things live
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `lib/studios.ts`: rates, memberships, which studios are bookable. The checkout API prices from here, never from the browser.
+- `lib/bookings.ts`: availability. Stripe is the booking ledger (paid bookings + 30-minute holds while someone pays), so there is no database.
+- `components/BookingFlow.tsx`: the booking page, membership switch and upsell, mobile pay bar.
+- `components/SpaceExplorer.tsx`: the 3D walkthrough. Hotspot positions are percentages of each render.
+- `components/Loader.tsx`: the intro loader (once per browser session).
+- `public/renders`, `public/photos`, `public/video`: pre-optimized WebP/MP4.
 
-## Learn More
+## Before going live
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Swap in the live Stripe key and set `NEXT_PUBLIC_SITE_URL`.
+- Retire the old booking site at the same time, so bookings aren't split across two systems.
+- Decide how members redeem their hours (currently: email or call).
