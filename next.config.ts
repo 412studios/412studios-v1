@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Old 412studios.ca paths, so bookmarks and social links keep working after the switch.
+  redirects() {
+    return [
+      { source: "/booking", destination: "/book", permanent: true },
+      { source: "/booking/:path*", destination: "/book", permanent: true },
+      { source: "/api/auth/:path*", destination: "/", permanent: false }, // old login; no accounts now
+    ];
+  },
 };
 
 export default nextConfig;
