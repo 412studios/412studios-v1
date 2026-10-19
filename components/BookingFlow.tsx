@@ -15,6 +15,7 @@ import {
   money,
   nextDates,
   studios,
+  taxOn,
   torontoNow,
   type MembershipHours,
   type Studio,
@@ -25,7 +26,9 @@ export type Plan = "hourly" | "membership";
 
 const slots = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, k) => OPEN_HOUR + k);
 
-export default function BookingFlow({ initialPlan, initialStudio }: { initialPlan: Plan; initialStudio?: string }) {
+export type Visitor = { signedIn: boolean; email: string | null };
+
+export default function BookingFlow({ initialPlan, initialStudio, visitor }: { initialPlan: Plan; initialStudio?: string; visitor: Visitor }) {
   const [plan, setPlan] = useState<Plan>(initialPlan);
 
   // Keep the URL shareable (/book?plan=membership) without a navigation.
@@ -44,12 +47,12 @@ export default function BookingFlow({ initialPlan, initialStudio }: { initialPla
       </div>
 
       {plan === "hourly" ? (
-        <HourlyBooking initialStudio={initialStudio} onSwitchToMembership={() => setPlan("membership")} />
+        <HourlyBooking initialStudio={initialStudio} visitor={visitor} onSwitchToMembership={() => setPlan("membership")} />
       ) : (
         <div>
           <p className="mb-6 max-w-xl text-lg">
-            Prepay 8 or 16 hours at a lower rate, then use them across as many sessions as you like. Pay now, no account
-            needed.
+            Prepay 8 or 16 hours at a lower rate, then book them online in 4-hour sessions whenever you like.
+            {visitor.signedIn ? "" : " You’ll log in or create an account first, so the hours are tied to you."}
           </p>
           <MembershipCards />
         </div>
@@ -73,7 +76,9 @@ function Tab({ active, onClick, title, sub }: { active: boolean; onClick: () => 
   );
 }
 
-function HourlyBooking({ initialStudio, onSwitchToMembership }: { initialStudio?: string; onSwitchToMembership: () => void }) {
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function HourlyBooking({ initialStudio, visitor, onSwitchToMembership }: { initialStudio?: string; visitor: Visitor; onSwitchToMembership: () => void }) {
   const firstOpen = studios.find((s) => s.available)!.id;
   const [studioId, setStudioId] = useState<StudioId>(
     studios.find((s) => s.id === initialStudio && s.available)?.id ?? firstOpen,
@@ -88,6 +93,8 @@ function HourlyBooking({ initialStudio, onSwitchToMembership }: { initialStudio?
   // Tap a start hour, then an end hour. Tapping again starts over.
   const [range, setRange] = useState<[number, number] | null>(null);
   const [engineer, setEngineer] = useState(false);
+  const [email, setEmail] = useState(visitor.email ?? "");
+  const emailOk = visitor.signedIn || EMAIL.test(email.trim());
   // Availability is tagged with the studio/date it belongs to, so a stale response never shows.
   const [avail, setAvail] = useState<{ key: string; booked: number[] } | null>(null);
   const availKey = `${studioId}|${date}`;
@@ -96,7 +103,9 @@ function HourlyBooking({ initialStudio, onSwitchToMembership }: { initialStudio?
 
   const studio = studios.find((s) => s.id === studioId)!;
   const hours = range ? range[1] - range[0] + 1 : 0;
-  const total = range ? hourlyTotal(studio, hours, engineer) : 0;
+  const subtotal = range ? hourlyTotal(studio, hours, engineer) : 0;
+  const tax = taxOn(subtotal);
+  const total = subtotal + tax;
   const isToday = date === now.date;
 
   useEffect(() => {
@@ -126,7 +135,8 @@ function HourlyBooking({ initialStudio, onSwitchToMembership }: { initialStudio?
   }
 
   const when = range ? `${dateLabel(date, { weekday: "short", month: "short", day: "numeric" })} · ${hourLabel(range[0])}–${hourLabel(range[1] + 1)}` : "";
-  const payload = { type: "hourly", studio: studio.id, date, start: range?.[0], end: range ? range[1] + 1 : undefined, engineer };
+  const payload = { type: "hourly", studio: studio.id, date, start: range?.[0], end: range ? range[1] + 1 : undefined, engineer, email: email.trim() };
+  const ready = !!range && emailOk;
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-8 pb-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-0">
@@ -222,6 +232,26 @@ function HourlyBooking({ initialStudio, onSwitchToMembership }: { initialStudio?
             <span className="ml-auto font-bold">+{money(ENGINEER_FEE_PER_HOUR)}/hr</span>
           </label>
         </section>
+
+        {!visitor.signedIn && (
+          <section aria-labelledby="s4">
+            <Step id="s4" n={4} title="Where to send your confirmation" />
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              aria-label="Email"
+              className="min-h-12 w-full rounded-xl border-2 border-ink bg-white px-4 text-base sm:max-w-md"
+            />
+            <p className="mt-2 text-sm text-neutral-600">
+              No account needed. <a href="/api/auth/login?post_login_redirect_url=%2Fbook" className="font-bold underline">Members, log in</a> to use your hours.
+            </p>
+          </section>
+        )}
       </div>
 
       {/* Desktop: sticky summary. Phones: the same info lives in the bottom pay bar. */}
@@ -233,17 +263,19 @@ function HourlyBooking({ initialStudio, onSwitchToMembership }: { initialStudio?
             <Row k="When" v={range ? when : "Pick your hours"} />
             <Row k="Duration" v={`${hours} hr${hours === 1 ? "" : "s"}`} />
             {engineer && <Row k="Engineer" v={`${money(ENGINEER_FEE_PER_HOUR)}/hr`} />}
+            <Row k="Subtotal" v={money(subtotal)} />
+            <Row k="HST (13%)" v={money(tax, true)} />
           </dl>
           <p className="mt-5 flex items-baseline justify-between border-t border-line pt-4">
             <span className="text-sm font-bold uppercase">Total</span>
-            <span className="display text-4xl not-italic">{money(total)}</span>
+            <span className="display text-4xl not-italic">{money(total, true)}</span>
           </p>
           <div className="mt-5">
-            <BuyButton disabled={!range} payload={payload}>
-              {range ? `Pay ${money(total)} & book` : "Pick your hours"}
+            <BuyButton disabled={!ready} payload={payload}>
+              {!range ? "Pick your hours" : !emailOk ? "Enter your email" : `Pay ${money(total, true)} & book`}
             </BuyButton>
           </div>
-          <p className="mt-3 text-xs text-neutral-600">Secure checkout by Stripe. No account needed. Promo codes at checkout.</p>
+          <p className="mt-3 text-xs text-neutral-600">Secure checkout by Stripe. Promo codes at checkout.</p>
         </div>
 
         <MembershipNudge studio={studio} hours={hours} sessionCost={range ? hourlyTotal(studio, hours, false) : 0} onSeeAll={onSwitchToMembership} />
@@ -253,11 +285,13 @@ function HourlyBooking({ initialStudio, onSwitchToMembership }: { initialStudio?
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold text-neutral-600">{range ? `${studio.name} · ${when}` : `${studio.name} · pick your hours`}</p>
-            <p className="display text-2xl not-italic">{money(total)}</p>
+            <p className="display text-2xl not-italic">
+              {money(total, true)} <span className="text-xs font-semibold not-italic text-neutral-600">incl. HST</span>
+            </p>
           </div>
           <div className="w-44 shrink-0">
-            <BuyButton disabled={!range} payload={payload}>
-              {range ? "Pay & book" : "Pick hours"}
+            <BuyButton disabled={!ready} payload={payload}>
+              {!range ? "Pick hours" : !emailOk ? "Add email" : "Pay & book"}
             </BuyButton>
           </div>
         </div>
@@ -278,7 +312,7 @@ function MembershipNudge({
   sessionCost: number;
   onSeeAll: () => void;
 }) {
-  const size: MembershipHours = hours > 8 ? 16 : 8;
+  const size: MembershipHours = hours > 8 ? 16 : 8; // compares pre-tax prices; HST applies to both
   const price = studio.memberships[size];
   const perHour = price / size;
   const extra = price - sessionCost;
@@ -293,7 +327,7 @@ function MembershipNudge({
       <p className="text-xs font-black uppercase tracking-wide text-brand">Membership</p>
       <p className="mt-1 text-lg font-bold leading-snug">{headline}</p>
       <p className="mt-1 text-sm text-cream/75">
-        {money(perHour, true)}/hr instead of {money(studio.hourly)}/hr. Use your hours across any sessions.
+        {money(perHour, true)}/hr instead of {money(studio.hourly)}/hr, plus HST. Book your hours online any time.
       </p>
       <div className="mt-4 grid gap-2">
         <BuyButton payload={{ type: "membership", studio: studio.id, hours: size }} className="btn bg-brand text-ink hover:bg-cream">

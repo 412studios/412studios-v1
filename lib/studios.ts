@@ -17,6 +17,7 @@ export type Studio = {
 };
 
 export const ENGINEER_FEE_PER_HOUR = 35;
+export const TAX_RATE = 0.13; // Ontario HST. Added on top of every price below and baked into the Stripe charge.
 export const OPEN_HOUR = 8;
 export const CLOSE_HOUR = 24;
 export const TIMEZONE = "America/Toronto";
@@ -75,6 +76,11 @@ export function hourlyTotal(studio: Studio, hours: number, engineer: boolean) {
   const rate = Math.min(studio.hourly * hours, studio.day * Math.ceil(hours / 12));
   return rate + (engineer ? ENGINEER_FEE_PER_HOUR * hours : 0);
 }
+
+/** HST on a pre-tax dollar amount, to the cent. */
+export const taxOn = (dollars: number) => Math.round(dollars * TAX_RATE * 100) / 100;
+/** What Stripe actually charges, in cents, tax included. */
+export const chargeCents = (dollars: number) => Math.round(dollars * 100 * (1 + TAX_RATE));
 
 /** Percent saved vs paying the drop-in hourly rate for the same hours. */
 export const membershipSavings = (s: Studio, h: MembershipHours) =>

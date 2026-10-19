@@ -11,8 +11,8 @@ export default function MembershipsPage() {
       <p className="text-sm font-black uppercase tracking-wide">Save up to {bestSavings()}%</p>
       <h1 className="display mt-2 text-5xl sm:text-7xl">Memberships</h1>
       <p className="mb-8 mt-3 max-w-xl text-lg">
-        Prepay 8 or 16 hours at a lower hourly rate, then use them across as many sessions as you like. Pick your studio, pay
-        securely, and you&rsquo;re in. No account, no back-and-forth.
+        Prepay 8 or 16 hours at a lower hourly rate, then book them online in 4-hour sessions whenever you like. Pick your
+        studio, pay securely, and your hours are waiting in your account.
       </p>
       <MembershipCards />
       <p className="mt-8 text-sm">

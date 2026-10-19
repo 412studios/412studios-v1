@@ -9,17 +9,15 @@ export default async function Success({ searchParams }: PageProps<"/book/success
       <h1 className="display text-5xl">{membership ? "You’re a member." : "You’re booked."}</h1>
       <p className="mt-4 text-lg">
         Your receipt is on its way to your email.{" "}
-        {membership ? (
-          <>
-            To schedule your hours, email{" "}
-            <a className="font-bold underline" href="mailto:Info@412studios.ca">Info@412studios.ca</a> or call{" "}
-            <a className="font-bold underline" href="tel:+16475402321">647-540-2321</a>.
-          </>
-        ) : (
-          "See you at 412 Richmond St E."
-        )}
+        {membership ? "Your hours are in your account, ready to book." : "See you at 412 Richmond St E."}
       </p>
-      <Link href="/" className="btn btn-primary mt-8">Back home</Link>
+      <div className="mt-8 flex flex-wrap justify-center gap-3">
+        {membership ? (
+          <Link href="/account" className="btn btn-primary">See my hours</Link>
+        ) : (
+          <Link href="/" className="btn btn-primary">Back home</Link>
+        )}
+      </div>
     </div>
   );
 }
