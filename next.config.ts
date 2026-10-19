@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
     return [
       { source: "/booking", destination: "/book", permanent: true },
       { source: "/booking/:path*", destination: "/book", permanent: true },
-      { source: "/api/auth/:path*", destination: "/", permanent: false }, // old login; no accounts now
     ];
   },
 };

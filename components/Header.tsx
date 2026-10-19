@@ -12,6 +12,7 @@ const links = [
   { href: "/book?plan=membership", label: "Memberships", badge: `-${bestSavings()}%` },
   { href: "/#artists", label: "Artists" },
   { href: "/#contact", label: "Contact" },
+  { href: "/account", label: "Account" },
 ];
 
 export function Logo() {

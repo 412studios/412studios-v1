@@ -15,7 +15,8 @@ Open http://localhost:3000.
 ## Where things live
 
 - `lib/studios.ts`: rates, memberships, which studios are bookable. The checkout API prices from here, never from the browser.
-- `lib/bookings.ts`: availability. Stripe is the booking ledger (paid bookings + 30-minute holds while someone pays), so there is no database.
+- `lib/bookings.ts`: availability. Stripe is the booking ledger (paid bookings + 30-minute holds while someone pays), so there is no database yet.
+- `lib/auth.ts`, `proxy.ts`, `app/account/`: member logins via Kinde. Without `KINDE_*` vars the site runs logged-out and `/account` says so. Hour balances and member bookings are placeholders until the ledger (Supabase) is wired up.
 - `components/BookingFlow.tsx`: the booking page, membership switch and upsell, mobile pay bar.
 - `components/SpaceExplorer.tsx`: the 3D walkthrough. Hotspot positions are percentages of each render.
 - `components/Loader.tsx`: the intro loader (once per browser session).
