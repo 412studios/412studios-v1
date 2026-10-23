@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { blur } from "@/lib/blur";
-import { nightAmount } from "@/lib/daylight";
+import { grade, sky } from "@/lib/daylight";
 import { TIMEZONE } from "@/lib/studios";
 
 // Pre-rendered isometric stills + hotspots: the drakerelated.com technique.
@@ -69,18 +69,30 @@ type Mode = "day" | "night";
 const src = (room: string, mode: Mode, w: 1280 | 1920) => `/renders/${room}-${mode}-${w}.webp`;
 const srcSet = (room: string, mode: Mode) => `${src(room, mode, 1280)} 1280w, ${src(room, mode, 1920)} 1920w`;
 
-// Toronto sky + wall clock as an external store: "" on the server, "0.37|10:26 p.m." in the browser.
-// The first number is how far into night we are (0 day, 1 night), re-read every 30s so the
-// render cross-fades through dusk and dawn.
+// In development, ?sky=2026-06-21T17:30 (Toronto time) freezes the clock to preview any hour's lighting.
+const frozen =
+  process.env.NODE_ENV === "development" && typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("sky")
+    : null;
+const torontoOffset = (iso: string) => {
+  // Toronto is UTC-4 in summer and UTC-5 in winter; good enough for a preview switch.
+  const m = Number(iso.slice(5, 7));
+  return m >= 4 && m <= 10 ? "-04:00" : "-05:00";
+};
+
+// Toronto sky + wall clock as an external store: "" on the server, "0.37|12.5|1|10:26 p.m." in the
+// browser: night amount (0 day, 1 night), sun elevation in degrees, 1 if morning, clock label.
+// Re-read every 30s so the lighting drifts through the day and cross-fades at dusk and dawn.
 const clockStore = {
   subscribe(cb: () => void) {
     const id = setInterval(cb, 30_000);
     return () => clearInterval(id);
   },
   get() {
-    const d = new Date();
+    const d = frozen ? new Date(`${frozen}${torontoOffset(frozen)}`) : new Date();
     const label = new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE, hour: "numeric", minute: "2-digit" }).format(d);
-    return `${nightAmount(d).toFixed(2)}|${label}`;
+    const s = sky(d);
+    return `${s.night.toFixed(2)}|${s.elevation.toFixed(1)}|${s.morning ? 1 : 0}|${label}`;
   },
   server: () => "",
 };
@@ -100,9 +112,12 @@ export default function SpaceExplorer() {
   // Lights follow the real sky over Toronto: the night render fades in around sunset and out
   // around sunrise. Visitors can still flip them. null until hydrated, so we never download
   // the wrong lighting first.
-  const [amountStr, clock] = now.split("|");
+  const [amountStr, elevationStr, morningStr, clock] = now.split("|");
   const night = override ? (override === "night" ? 1 : 0) : now ? Number(amountStr) : null;
   const mode: Mode | null = night === null ? null : night >= 0.5 ? "night" : "day";
+  // Forcing "day" shows the plain midday render; otherwise the day render is colour-graded by the sun.
+  const tint = override || !now ? null : grade({ elevation: Number(elevationStr), morning: morningStr === "1" });
+  const dayMounted = night !== null && (night < 1 || loaded[`${room.id}-day`]);
 
   // On phones the render is wider than the screen: start centred on the room's focal point.
   useLayoutEffect(() => {
@@ -163,11 +178,31 @@ export default function SpaceExplorer() {
                 fetchPriority={m === mode && i === 0 ? "high" : "auto"}
                 decoding="async"
                 onLoad={() => setLoaded((l) => ({ ...l, [`${room.id}-${m}`]: true }))}
-                // Day is the base layer; night sits on top and fades in with the sky.
-                style={{ opacity: !loaded[`${room.id}-${m}`] ? 0 : m === "day" ? 1 : night ?? 0 }}
-                className="absolute inset-0 h-full w-full transition-opacity duration-700"
+                // Day is the base layer, graded by the sun; night sits on top and fades in with the sky.
+                style={{
+                  opacity: !loaded[`${room.id}-${m}`] ? 0 : m === "day" ? 1 : night ?? 0,
+                  filter: m === "day" && tint ? tint.filter : undefined,
+                }}
+                // z-[1] keeps the night render above the lighting layers below.
+                className={`absolute inset-0 h-full w-full transition-[opacity,filter] duration-700 ${m === "night" ? "z-[1]" : ""}`}
               />
             ))}
+
+            {/* Virtual lighting: warm light as the sun drops, blue through twilight. Sits between the day and night renders. */}
+            {tint && dayMounted && (
+              <>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 transition-opacity duration-700"
+                  style={{ backgroundColor: tint.warmColor, mixBlendMode: "soft-light", opacity: tint.warm }}
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 transition-opacity duration-700"
+                  style={{ backgroundColor: "#1f3a7a", mixBlendMode: "multiply", opacity: tint.cool }}
+                />
+              </>
+            )}
 
             {room.hotspots.map((h, idx) => (
               <button
