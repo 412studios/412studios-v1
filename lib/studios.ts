@@ -1,6 +1,7 @@
 // Source of truth for pricing. The checkout API recomputes totals from here,
 // so the browser can never set its own price.
-// Rates copied from the live 412studios.ca/booking page (Oct 2026).
+// Hourly and membership rates are from the owners' pricing sheet (Oct 2026), which lowered the
+// live site's prices. Day rates are still the live site's; the sheet doesn't mention them.
 
 export type StudioId = "a" | "b" | "c";
 export type MembershipHours = 8 | 16;
@@ -26,9 +27,9 @@ export const studios: Studio[] = [
   {
     id: "a",
     name: "Studio A",
-    hourly: 75,
+    hourly: 70,
     day: 500,
-    memberships: { 8: 439, 16: 799 },
+    memberships: { 8: 400, 16: 720 },
     available: true,
     blurb: "The flagship suite. Control room, live room, lounge and kitchen.",
     photo: "studio-a",
@@ -36,9 +37,9 @@ export const studios: Studio[] = [
   {
     id: "b",
     name: "Studio B",
-    hourly: 55,
+    hourly: 50,
     day: 400,
-    memberships: { 8: 339, 16: 599 },
+    memberships: { 8: 280, 16: 480 },
     available: false, // matches "Currently Unavailable" on the live site
     blurb: "Piano, guitar amps and warm treated walls for writing and tracking.",
     photo: "studio-b",
@@ -46,9 +47,9 @@ export const studios: Studio[] = [
   {
     id: "c",
     name: "Studio C",
-    hourly: 35,
+    hourly: 30,
     day: 250,
-    memberships: { 8: 239, 16: 399 },
+    memberships: { 8: 200, 16: 320 },
     available: true,
     blurb: "Synth-stacked production room. Best value for beats and writing.",
     photo: "studio-c",

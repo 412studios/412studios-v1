@@ -56,8 +56,8 @@ export const rooms: Room[] = [
     focus: 50,
     hotspots: [
       { x: 20, y: 58, title: "Kitchen", text: "Fridge, sink and counter space to fuel up between takes." },
-      { x: 58, y: 88, title: "Work table", text: "Answer emails, write lyrics, plan the rollout." },
-      { x: 73, y: 45, title: "Front door", text: "Back to where it starts.", action: { kind: "room", to: "room-a", label: "Back to Studio A" } },
+      { x: 58, y: 88, title: "Work table", text: "Answer emails, write lyrics, plan the rollout.", action: { kind: "room", to: "room-a", label: "Back to Studio A" } },
+      { x: 73, y: 45, title: "Patio door", text: "Opens onto the patio. Step outside for air between takes." },
     ],
   },
 ];
