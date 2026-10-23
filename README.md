@@ -36,15 +36,3 @@ Open Prisma Studio to manage your database:
 ```bash
 npx prisma studio
 ```
-
-## Email Integration
-
-The application uses Resend for sending emails. To enable email functionality:
-
-1. Sign up for a Resend account at [resend.com](https://resend.com)
-2. Add your API key to the `.env` file:
-
-```
-RESEND_API_KEY=your_api_key
-RESEND_FROM_EMAIL=your_verified_sender_email
-```
