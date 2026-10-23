@@ -7,7 +7,7 @@ import { blur } from "@/lib/blur";
 import { TIMEZONE } from "@/lib/studios";
 
 // Pre-rendered isometric stills + hotspots: the drakerelated.com technique.
-// No WebGL, so it's instant on phones: each render is ~80KB WebP instead of a 3MB PNG.
+// No WebGL, so it is quick on phones: each render is a 50–150KB WebP cut from the 3–7MB Blender PNGs.
 // Hotspot x/y are percentages of the 16:9 render.
 
 type Action = { kind: "book"; href: string; label: string } | { kind: "room"; to: string; label: string };
@@ -20,44 +20,46 @@ export const rooms: Room[] = [
   {
     id: "room-a",
     name: "Studio A",
-    focus: 50,
+    focus: 58,
     hotspots: [
-      { x: 50, y: 84, title: "Control desk", text: "Monitors, interface and MIDI keys, set up and ready when you walk in.", action: bookA, primary: true },
-      { x: 24, y: 60, title: "Daybeds", text: "Room for the whole crew to listen back without crowding the engineer." },
-      { x: 89, y: 54, title: "Guitar wall", text: "Acoustic and electrics on stands. Grab one mid-session." },
-      { x: 43, y: 30, title: "Downtown view", text: "Floor-to-ceiling windows over Richmond St E.", action: { kind: "room", to: "live-room", label: "Next: the live room" } },
+      { x: 63, y: 86, title: "Control desk", text: "Monitors, interface and MIDI keys, set up and ready when you walk in.", action: bookA, primary: true },
+      { x: 30, y: 62, title: "Daybeds", text: "Room for the whole crew to listen back without crowding the engineer." },
+      { x: 84, y: 26, title: "Guitar wall", text: "Acoustic and electrics on stands. Grab one mid-session." },
+      { x: 88, y: 66, title: "Stage piano", text: "88 weighted keys beside the desk, headphones hanging ready." },
+      { x: 6, y: 36, title: "Downtown view", text: "Floor-to-ceiling windows over Richmond St E.", action: { kind: "room", to: "live-room", label: "Next: the live room" } },
     ],
   },
   {
     id: "live-room",
     name: "Live Room",
-    focus: 50,
+    focus: 55,
     hotspots: [
-      { x: 60, y: 84, title: "Drum kit", text: "A full kit, mic'd and ready to track.", action: bookA, primary: true },
-      { x: 34, y: 48, title: "Keys", text: "Electric piano and a synth on top, with a mixer on the side table." },
-      { x: 62, y: 40, title: "Keyboard stack", text: "Three tiers of keys for writing sessions." },
-      { x: 12, y: 70, title: "Listening chair", text: "Sit back for playback.", action: { kind: "room", to: "lounge", label: "Next: the lounge" } },
+      { x: 62, y: 86, title: "Drum kit", text: "A full kit, mic'd and ready to track.", action: bookA, primary: true },
+      { x: 32, y: 32, title: "Keys", text: "Electric piano and a synth on top, with a mixer on the side table." },
+      { x: 60, y: 33, title: "Keyboard stack", text: "Three tiers of keys for writing sessions." },
+      { x: 10, y: 62, title: "Listening chair", text: "Sit back for playback.", action: { kind: "room", to: "lounge", label: "Next: the lounge" } },
     ],
   },
   {
     id: "lounge",
     name: "Lounge",
-    focus: 32,
+    focus: 50,
     hotspots: [
-      { x: 23, y: 34, title: "Book your date", text: "Pick a studio and hours, pay online, done. No messages, no account.", action: { kind: "book", href: "/book", label: "Book now" }, primary: true },
-      { x: 46, y: 58, title: "Record player", text: "Vinyl for between takes." },
-      { x: 28, y: 72, title: "The couch", text: "Where the sessions breathe." },
-      { x: 46, y: 30, title: "Doorway", text: "Through to the kitchen.", action: { kind: "room", to: "kitchen", label: "Go to the kitchen" } },
+      { x: 30, y: 30, title: "Book your date", text: "Pick a studio and hours, pay online, done. No messages, no account.", action: { kind: "book", href: "/book", label: "Book now" }, primary: true },
+      { x: 36, y: 70, title: "The big table", text: "Eight seats for writing camps and playback sessions." },
+      { x: 72, y: 62, title: "The couch", text: "Where the sessions breathe." },
+      { x: 88, y: 88, title: "Record player", text: "Vinyl for between takes." },
+      { x: 47, y: 28, title: "Doorway", text: "Through to the kitchen.", action: { kind: "room", to: "kitchen", label: "Go to the kitchen" } },
     ],
   },
   {
     id: "kitchen",
     name: "Kitchen",
-    focus: 50,
+    focus: 55,
     hotspots: [
-      { x: 20, y: 58, title: "Kitchen", text: "Fridge, sink and counter space to fuel up between takes." },
-      { x: 58, y: 88, title: "Work table", text: "Answer emails, write lyrics, plan the rollout.", action: { kind: "room", to: "room-a", label: "Back to Studio A" } },
-      { x: 73, y: 45, title: "Patio door", text: "Opens onto the patio. Step outside for air between takes." },
+      { x: 20, y: 68, title: "Kitchen", text: "Fridge, sink and counter space to fuel up between takes." },
+      { x: 66, y: 92, title: "Work table", text: "Answer emails, write lyrics, plan the rollout.", action: { kind: "room", to: "room-a", label: "Back to Studio A" } },
+      { x: 69, y: 40, title: "Patio door", text: "Opens onto the patio. Step outside for air between takes." },
     ],
   },
 ];
