@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { blur } from "@/lib/blur";
+import { nightAmount } from "@/lib/daylight";
 import { TIMEZONE } from "@/lib/studios";
 
 // Pre-rendered isometric stills + hotspots: the drakerelated.com technique.
@@ -43,13 +44,12 @@ export const rooms: Room[] = [
   {
     id: "lounge",
     name: "Lounge",
-    focus: 50,
+    focus: 32,
     hotspots: [
-      { x: 30, y: 30, title: "Book your date", text: "Pick a studio and hours, pay online, done. No messages, no account.", action: { kind: "book", href: "/book", label: "Book now" }, primary: true },
-      { x: 36, y: 70, title: "The big table", text: "Eight seats for writing camps and playback sessions." },
-      { x: 72, y: 62, title: "The couch", text: "Where the sessions breathe." },
-      { x: 88, y: 88, title: "Record player", text: "Vinyl for between takes." },
-      { x: 47, y: 28, title: "Doorway", text: "Through to the kitchen.", action: { kind: "room", to: "kitchen", label: "Go to the kitchen" } },
+      { x: 23, y: 34, title: "Book your date", text: "Pick a studio and hours, pay online, done. No messages, no account.", action: { kind: "book", href: "/book", label: "Book now" }, primary: true },
+      { x: 46, y: 58, title: "Record player", text: "Vinyl for between takes." },
+      { x: 28, y: 72, title: "The couch", text: "Where the sessions breathe." },
+      { x: 46, y: 30, title: "Doorway", text: "Through to the kitchen.", action: { kind: "room", to: "kitchen", label: "Go to the kitchen" } },
     ],
   },
   {
@@ -69,7 +69,9 @@ type Mode = "day" | "night";
 const src = (room: string, mode: Mode, w: 1280 | 1920) => `/renders/${room}-${mode}-${w}.webp`;
 const srcSet = (room: string, mode: Mode) => `${src(room, mode, 1280)} 1280w, ${src(room, mode, 1920)} 1920w`;
 
-// Toronto wall clock as an external store: "" on the server, "22|10:26 p.m." in the browser.
+// Toronto sky + wall clock as an external store: "" on the server, "0.37|10:26 p.m." in the browser.
+// The first number is how far into night we are (0 day, 1 night), re-read every 30s so the
+// render cross-fades through dusk and dawn.
 const clockStore = {
   subscribe(cb: () => void) {
     const id = setInterval(cb, 30_000);
@@ -77,9 +79,8 @@ const clockStore = {
   },
   get() {
     const d = new Date();
-    const hour = new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE, hour: "2-digit", hourCycle: "h23" }).format(d);
     const label = new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE, hour: "numeric", minute: "2-digit" }).format(d);
-    return `${Number(hour)}|${label}`;
+    return `${nightAmount(d).toFixed(2)}|${label}`;
   },
   server: () => "",
 };
@@ -96,11 +97,12 @@ export default function SpaceExplorer() {
   const room = rooms[i];
   const spot = active === null ? null : room.hotspots[active];
 
-  // Lights follow the real time in Toronto, like the current site; visitors can flip them.
-  // null until hydrated, so we never download the wrong lighting first.
-  const [hourStr, clock] = now.split("|");
-  const hour = Number(hourStr);
-  const mode: Mode | null = override ?? (now ? (hour >= 19 || hour < 7 ? "night" : "day") : null);
+  // Lights follow the real sky over Toronto: the night render fades in around sunset and out
+  // around sunrise. Visitors can still flip them. null until hydrated, so we never download
+  // the wrong lighting first.
+  const [amountStr, clock] = now.split("|");
+  const night = override ? (override === "night" ? 1 : 0) : now ? Number(amountStr) : null;
+  const mode: Mode | null = night === null ? null : night >= 0.5 ? "night" : "day";
 
   // On phones the render is wider than the screen: start centred on the room's focal point.
   useLayoutEffect(() => {
@@ -149,8 +151,8 @@ export default function SpaceExplorer() {
             style={{ backgroundImage: `url(${blur[key]})`, backgroundSize: "cover" }}
           >
             {(["day", "night"] as const).map((m) =>
-              // Only mount the other lighting once someone flips the switch.
-              m !== mode && !loaded[`${room.id}-${m}`] ? null : (
+              // Mount a lighting only while it is visible (both during dusk and dawn) or once it has loaded.
+              night === null || ((m === "day" ? night >= 1 : night <= 0) && !loaded[`${room.id}-${m}`]) ? null : (
               <img
                 key={`${room.id}-${m}`}
                 src={src(room.id, m, 1920)}
@@ -161,9 +163,9 @@ export default function SpaceExplorer() {
                 fetchPriority={m === mode && i === 0 ? "high" : "auto"}
                 decoding="async"
                 onLoad={() => setLoaded((l) => ({ ...l, [`${room.id}-${m}`]: true }))}
-                className={`absolute inset-0 h-full w-full transition-opacity duration-700 ${
-                  m === mode && loaded[`${room.id}-${m}`] ? "opacity-100" : "opacity-0"
-                }`}
+                // Day is the base layer; night sits on top and fades in with the sky.
+                style={{ opacity: !loaded[`${room.id}-${m}`] ? 0 : m === "day" ? 1 : night ?? 0 }}
+                className="absolute inset-0 h-full w-full transition-opacity duration-700"
               />
             ))}
 
