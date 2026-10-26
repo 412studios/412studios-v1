@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { blur } from "@/lib/blur";
-import { grade, sky } from "@/lib/daylight";
+import { grade, sky, sunBlend, type SunFrame } from "@/lib/daylight";
 import { TIMEZONE } from "@/lib/studios";
 
 // Pre-rendered isometric stills + hotspots: the drakerelated.com technique.
@@ -13,7 +13,7 @@ import { TIMEZONE } from "@/lib/studios";
 
 type Action = { kind: "book"; href: string; label: string } | { kind: "room"; to: string; label: string };
 type Hotspot = { x: number; y: number; title: string; text: string; action?: Action; primary?: boolean };
-type Room = { id: string; name: string; focus: number; hotspots: Hotspot[] };
+type Room = { id: string; name: string; focus: number; hotspots: Hotspot[]; sun?: boolean };
 
 const bookA: Action = { kind: "book", href: "/book?studio=a", label: "Book Studio A" };
 
@@ -56,6 +56,8 @@ export const rooms: Room[] = [
     id: "kitchen",
     name: "Kitchen",
     focus: 55,
+    sun: true, // rendered at seven sun positions from the Blender scene
+
     hotspots: [
       { x: 20, y: 68, title: "Kitchen", text: "Fridge, sink and counter space to fuel up between takes." },
       { x: 66, y: 92, title: "Work table", text: "Answer emails, write lyrics, plan the rollout.", action: { kind: "room", to: "room-a", label: "Back to Studio A" } },
@@ -65,9 +67,30 @@ export const rooms: Room[] = [
 ];
 
 type Mode = "day" | "night";
+// A render of a room: the artist's day or night lighting, or one of our sun keyframes.
+type Frame = Mode | SunFrame;
+type Layer = { frame: Frame; opacity: number };
 
-const src = (room: string, mode: Mode, w: 1280 | 1920) => `/renders/${room}-${mode}-${w}.webp`;
-const srcSet = (room: string, mode: Mode) => `${src(room, mode, 1280)} 1280w, ${src(room, mode, 1920)} 1920w`;
+const src = (room: string, frame: Frame, w: 1280 | 1920) => `/renders/${room}-${frame}-${w}.webp`;
+const srcSet = (room: string, frame: Frame) => `${src(room, frame, 1280)} 1280w, ${src(room, frame, 1920)} 1920w`;
+const SIZES = "(min-width: 640px) min(1152px, 100vw), 125vh";
+
+/** Which renders to stack for this room right now, bottom to top. */
+function layersFor(room: Room, night: number, override: Mode | null, sun: { elevation: number; morning: boolean; hourAngle: number }): Layer[] {
+  if (override === "night") return [{ frame: "night", opacity: 1 }];
+  if (override === "day") return [{ frame: room.sun ? "hi" : "day", opacity: 1 }];
+  const out: Layer[] = [];
+  if (room.sun) {
+    const b = sunBlend(sun);
+    out.push({ frame: b.lower, opacity: 1 });
+    if (b.upper !== b.lower) out.push({ frame: b.upper, opacity: b.upper === "hi" ? Math.max(b.t, b.noon) : b.t });
+    if (b.upper !== "hi" && b.lower !== "hi" && b.noon > 0) out.push({ frame: "hi", opacity: b.noon });
+  } else {
+    out.push({ frame: "day", opacity: 1 });
+  }
+  if (night > 0) out.push({ frame: "night", opacity: night });
+  return out;
+}
 
 // In development, ?sky=2026-06-21T17:30 (Toronto time) freezes the clock to preview any hour's lighting.
 const frozen =
@@ -80,8 +103,8 @@ const torontoOffset = (iso: string) => {
   return m >= 4 && m <= 10 ? "-04:00" : "-05:00";
 };
 
-// Toronto sky + wall clock as an external store: "" on the server, "0.37|12.5|1|10:26 p.m." in the
-// browser: night amount (0 day, 1 night), sun elevation in degrees, 1 if morning, clock label.
+// Toronto sky + wall clock as an external store: "" on the server, "0.37|12.5|1|-40.0|10:26 p.m." in the
+// browser: night amount (0 day, 1 night), sun elevation in degrees, 1 if morning, hour angle, clock label.
 // Re-read every 30s so the lighting drifts through the day and cross-fades at dusk and dawn.
 const clockStore = {
   subscribe(cb: () => void) {
@@ -92,7 +115,7 @@ const clockStore = {
     const d = frozen ? new Date(`${frozen}${torontoOffset(frozen)}`) : new Date();
     const label = new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE, hour: "numeric", minute: "2-digit" }).format(d);
     const s = sky(d);
-    return `${s.night.toFixed(2)}|${s.elevation.toFixed(1)}|${s.morning ? 1 : 0}|${label}`;
+    return `${s.night.toFixed(2)}|${s.elevation.toFixed(1)}|${s.morning ? 1 : 0}|${s.hourAngle.toFixed(1)}|${label}`;
   },
   server: () => "",
 };
@@ -112,12 +135,24 @@ export default function SpaceExplorer() {
   // Lights follow the real sky over Toronto: the night render fades in around sunset and out
   // around sunrise. Visitors can still flip them. null until hydrated, so we never download
   // the wrong lighting first.
-  const [amountStr, elevationStr, morningStr, clock] = now.split("|");
+  const [amountStr, elevationStr, morningStr, hourAngleStr, clock] = now.split("|");
   const night = override ? (override === "night" ? 1 : 0) : now ? Number(amountStr) : null;
   const mode: Mode | null = night === null ? null : night >= 0.5 ? "night" : "day";
-  // Forcing "day" shows the plain midday render; otherwise the day render is colour-graded by the sun.
-  const tint = override || !now ? null : grade({ elevation: Number(elevationStr), morning: morningStr === "1" });
-  const dayMounted = night !== null && (night < 1 || loaded[`${room.id}-day`]);
+  const sun = { elevation: Number(elevationStr), morning: morningStr === "1", hourAngle: Number(hourAngleStr) };
+  // Rooms with sun keyframes carry their own colour; the others get the day render colour-graded by the
+  // sun. Both get the blue twilight layer. Forcing "day" shows the plain midday render.
+  const tint = override || !now ? null : grade(sun);
+  const layers = night === null ? [] : layersFor(room, night, override, sun);
+  const topFrame = layers.length ? layers[layers.length - 1].frame : null;
+  const dayMounted = layers.some((l) => l.frame !== "night");
+  const isLoaded = (frame: Frame) => !!loaded[`${room.id}-${frame}`];
+  // Keep already-downloaded frames mounted (at 0) so coming back to them never flashes the blur.
+  const mounted: Layer[] = [
+    ...layers,
+    ...(["day", "night", "m03", "m12", "m25", "hi", "a25", "a12", "a03"] as Frame[])
+      .filter((f) => isLoaded(f) && !layers.some((l) => l.frame === f))
+      .map((frame) => ({ frame, opacity: 0 })),
+  ];
 
   // On phones the render is wider than the screen: start centred on the room's focal point.
   useLayoutEffect(() => {
@@ -129,12 +164,16 @@ export default function SpaceExplorer() {
 
   // Warm the cache for the next room so moving around feels instant.
   useEffect(() => {
-    if (!mode) return;
+    if (night === null) return;
     const next = rooms[(i + 1) % rooms.length];
-    const img = new Image();
-    img.srcset = srcSet(next.id, mode);
-    img.sizes = "(min-width: 640px) min(1152px, 100vw), 125vh";
-  }, [i, mode]);
+    for (const l of layersFor(next, night, override, sun).slice(0, 2)) {
+      const img = new Image();
+      img.srcset = srcSet(next.id, l.frame);
+      img.sizes = SIZES;
+    }
+    // Only re-warm when the room changes; the sky drifts slowly and the frames are cached anyway.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i]);
 
   const goTo = (idx: number) => {
     setI((idx + rooms.length) % rooms.length);
@@ -165,37 +204,38 @@ export default function SpaceExplorer() {
             className="relative aspect-video h-full sm:h-auto sm:w-full"
             style={{ backgroundImage: `url(${blur[key]})`, backgroundSize: "cover" }}
           >
-            {(["day", "night"] as const).map((m) =>
-              // Mount a lighting only while it is visible (both during dusk and dawn) or once it has loaded.
-              night === null || ((m === "day" ? night >= 1 : night <= 0) && !loaded[`${room.id}-${m}`]) ? null : (
+            {mounted.map((l) => (
+              // Bottom to top: the base render, the frames fading in over it, then night on top (z-[1],
+              // above the lighting layers). Hidden until loaded so a frame never pops in half-decoded.
               <img
-                key={`${room.id}-${m}`}
-                src={src(room.id, m, 1920)}
-                srcSet={srcSet(room.id, m)}
-                sizes="(min-width: 640px) min(1152px, 100vw), 125vh"
-                alt={m === mode ? `${room.name}, 3D render at ${m === "day" ? "daytime" : "night"}` : ""}
-                aria-hidden={m !== mode}
-                fetchPriority={m === mode && i === 0 ? "high" : "auto"}
+                key={`${room.id}-${l.frame}`}
+                src={src(room.id, l.frame, 1920)}
+                srcSet={srcSet(room.id, l.frame)}
+                sizes={SIZES}
+                alt={l.frame === topFrame ? `${room.name}, 3D render at ${mode === "night" ? "night" : "daytime"}` : ""}
+                aria-hidden={l.frame !== topFrame}
+                fetchPriority={l.frame === layers[0]?.frame && i === 0 ? "high" : "auto"}
                 decoding="async"
-                onLoad={() => setLoaded((l) => ({ ...l, [`${room.id}-${m}`]: true }))}
-                // Day is the base layer, graded by the sun; night sits on top and fades in with the sky.
+                onLoad={() => setLoaded((s) => ({ ...s, [`${room.id}-${l.frame}`]: true }))}
                 style={{
-                  opacity: !loaded[`${room.id}-${m}`] ? 0 : m === "day" ? 1 : night ?? 0,
-                  filter: m === "day" && tint ? tint.filter : undefined,
+                  opacity: isLoaded(l.frame) ? l.opacity : 0,
+                  filter: l.frame === "day" && tint ? tint.filter : undefined,
                 }}
-                // z-[1] keeps the night render above the lighting layers below.
-                className={`absolute inset-0 h-full w-full transition-[opacity,filter] duration-700 ${m === "night" ? "z-[1]" : ""}`}
+                className={`absolute inset-0 h-full w-full transition-[opacity,filter] duration-700 ${l.frame === "night" ? "z-[1]" : ""}`}
               />
             ))}
 
-            {/* Virtual lighting: warm light as the sun drops, blue through twilight. Sits between the day and night renders. */}
+            {/* Virtual lighting: warm light as the sun drops (only where the day render is a single image),
+                blue through twilight everywhere. Sits between the daytime renders and the night render. */}
             {tint && dayMounted && (
               <>
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 transition-opacity duration-700"
-                  style={{ backgroundColor: tint.warmColor, mixBlendMode: "soft-light", opacity: tint.warm }}
-                />
+                {!room.sun && (
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 transition-opacity duration-700"
+                    style={{ backgroundColor: tint.warmColor, mixBlendMode: "soft-light", opacity: tint.warm }}
+                  />
+                )}
                 <div
                   aria-hidden
                   className="pointer-events-none absolute inset-0 transition-opacity duration-700"

@@ -62,6 +62,8 @@ export type Sky = {
   elevation: number;
   /** Before solar noon. Morning light is pinker, afternoon light is more golden. */
   morning: boolean;
+  /** Degrees of hour angle from solar noon: negative in the morning, 15° per hour. */
+  hourAngle: number;
 };
 
 export function sky(d = new Date()): Sky {
@@ -69,7 +71,7 @@ export function sky(d = new Date()): Sky {
   const t = sinceNoon(d, solarNoon);
   const ha = (t / 4) * RAD; // hour angle: 15° per hour
   const sinEl = Math.sin(LAT * RAD) * Math.sin(decl) + Math.cos(LAT * RAD) * Math.cos(decl) * Math.cos(ha);
-  return { night: nightAmount(d), elevation: Math.asin(sinEl) / RAD, morning: t < 0 };
+  return { night: nightAmount(d), elevation: Math.asin(sinEl) / RAD, morning: t < 0, hourAngle: t / 4 };
 }
 
 // The "virtual lighting" pass: a colour grade over the single daytime render so the room
@@ -104,4 +106,49 @@ export function grade(s: Pick<Sky, "elevation" | "morning">): Grade {
     warmColor: s.morning ? "#ffb089" : "#ff9a3c",
     cool: Math.round(cool * 100) / 100,
   };
+}
+
+// Sun keyframes: rooms rendered from the Blender scenes at a handful of sun positions along an
+// equinox path over Toronto. The explorer cross-fades between the two frames nearest the current
+// elevation, on the morning or afternoon side, then into the night render after sunset.
+export const SUN_FRAMES = {
+  morning: [
+    ["m03", 3],
+    ["m12", 12],
+    ["m25", 25],
+    ["hi", 45],
+  ],
+  afternoon: [
+    ["a03", 3],
+    ["a12", 12],
+    ["a25", 25],
+    ["hi", 45],
+  ],
+} as const;
+export type SunFrame = (typeof SUN_FRAMES)["morning"][number][0] | (typeof SUN_FRAMES)["afternoon"][number][0];
+
+export type SunBlend = {
+  /** Base frame, shown in full. */
+  lower: SunFrame;
+  /** Next frame up the path, shown at opacity t. */
+  upper: SunFrame;
+  t: number;
+  /** The high-sun frame fades in over the 90 minutes either side of solar noon, so the switch from
+   *  the morning path to the afternoon path happens behind it. */
+  noon: number;
+};
+
+const NOON_HALF_WIDTH = 22.5; // degrees of hour angle: 1.5 hours
+
+export function sunBlend(s: Pick<Sky, "elevation" | "morning" | "hourAngle">): SunBlend {
+  const path = s.morning ? SUN_FRAMES.morning : SUN_FRAMES.afternoon;
+  const e = Math.max(path[0][1], Math.min(path[path.length - 1][1], s.elevation));
+  const noon = smooth(1 - Math.abs(s.hourAngle) / NOON_HALF_WIDTH);
+  for (let k = 0; k < path.length - 1; k++) {
+    const [lo, loE] = path[k];
+    const [hiName, hiE] = path[k + 1];
+    if (e <= hiE) return { lower: lo, upper: hiName, t: smooth((e - loE) / (hiE - loE)), noon };
+  }
+  const last = path[path.length - 1][0];
+  return { lower: last, upper: last, t: 0, noon };
 }
