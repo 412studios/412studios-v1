@@ -3,7 +3,8 @@ import InViewVideo from "@/components/InViewVideo";
 import MembershipCards from "@/components/MembershipCards";
 import Photo from "@/components/Photo";
 import SpaceExplorer from "@/components/SpaceExplorer";
-import { bestSavings, cheapestMembership, money, studios } from "@/lib/studios";
+import { loadStudios } from "@/lib/pricing";
+import { bestSavings, cheapestMembership, money } from "@/lib/studios";
 
 const artists = [
   {
@@ -26,8 +27,9 @@ const life = [
   { name: "life-guitar", alt: "Guitarist playing by the window" },
 ];
 
-export default function Home() {
-  const save = bestSavings();
+export default async function Home() {
+  const studios = await loadStudios();
+  const save = bestSavings(studios);
 
   return (
     <>
@@ -100,10 +102,10 @@ export default function Home() {
           <p className="inline-block rounded-full bg-brand px-3 py-1 text-xs font-black uppercase text-ink">Save up to {save}%</p>
           <h2 className="display mt-4 text-5xl text-brand sm:text-7xl">Memberships</h2>
           <p className="mb-8 mt-3 max-w-xl text-lg">
-            Recording regularly? Prepay your hours from {money(cheapestMembership())} and use them across as many sessions as
+            Recording regularly? Prepay your hours from {money(cheapestMembership(studios))} and use them across as many sessions as
             you like. Buy online right now, no message needed.
           </p>
-          <MembershipCards dark />
+          <MembershipCards studios={studios} dark />
         </div>
       </section>
 

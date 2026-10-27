@@ -2,18 +2,36 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LogoMark from "./LogoMark";
-import { bestSavings, cheapestMembership, money } from "@/lib/studios";
+import { money } from "@/lib/studios";
 
-const links = [
+/** Current prices, read by the root layout so the header's badges match the Pricing table. */
+export type HeaderPrices = { savings: number; cheapest: number };
+
+const navLinks = (savings: number, admin: boolean) => [
   { href: "/#explore", label: "The Space" },
   { href: "/#studios", label: "Studios" },
-  { href: "/book?plan=membership", label: "Memberships", badge: `-${bestSavings()}%` },
+  { href: "/book?plan=membership", label: "Memberships", badge: `-${savings}%` },
   { href: "/#artists", label: "Artists" },
   { href: "/#contact", label: "Contact" },
   { href: "/account", label: "Account" },
+  ...(admin ? [{ href: "/admin", label: "Admin" }] : []),
 ];
+
+/** Admins get a link to /admin. Asked once per page load so the (static) pages stay static. */
+function useIsAdmin() {
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch("/api/admin/me", { signal: ctrl.signal })
+      .then((r) => r.json())
+      .then((d) => setAdmin(!!d.admin))
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, []);
+  return admin;
+}
 
 export function Logo() {
   return (
@@ -23,8 +41,9 @@ export function Logo() {
   );
 }
 
-export default function Header() {
+export default function Header({ prices }: { prices: HeaderPrices }) {
   const [open, setOpen] = useState(false);
+  const links = navLinks(prices.savings, useIsAdmin());
 
   return (
     <header className="sticky top-0 z-50 border-b border-ink bg-cream">
@@ -76,9 +95,9 @@ export default function Header() {
 }
 
 /** Phones only: keeps both ways to pay one thumb away on every page except /book (which has its own pay bar). */
-export function MobileActionBar() {
+export function MobileActionBar({ prices }: { prices: HeaderPrices }) {
   const path = usePathname();
-  if (path.startsWith("/book")) return null;
+  if (path.startsWith("/book") || path.startsWith("/admin")) return null;
   return (
     <>
       <div aria-hidden className="h-20 md:hidden" />
@@ -89,7 +108,7 @@ export function MobileActionBar() {
         <Link href="/book?plan=membership" className="btn bg-ink !px-3 leading-tight text-cream">
           <span>
             Memberships
-            <span className="block text-[10px] text-brand">from {money(cheapestMembership())}</span>
+            <span className="block text-[10px] text-brand">from {money(prices.cheapest)}</span>
           </span>
         </Link>
       </div>

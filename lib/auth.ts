@@ -34,3 +34,21 @@ export async function currentMember(): Promise<Member | null> {
 export const LOGIN_URL = "/api/auth/login";
 export const REGISTER_URL = "/api/auth/register";
 export const LOGOUT_URL = "/api/auth/logout";
+
+/**
+ * True when the signed-in member holds the Kinde permission "admin", the flag the old site's
+ * /user/admin used, so the same people stay admins. Locally, where there is no Kinde tenant,
+ * ADMIN_DEV_BYPASS=1 opens the admin in `next dev` only (see .env.example).
+ */
+export async function isAdmin(): Promise<boolean> {
+  if (process.env.NODE_ENV === "development" && process.env.ADMIN_DEV_BYPASS === "1") return true;
+  if (!authConfigured()) return false;
+  const { isAuthenticated, getPermission } = getKindeServerSession();
+  if (!(await isAuthenticated())) return false;
+  return !!(await getPermission("admin"))?.isGranted;
+}
+
+/** For server actions and route handlers that change data: throws unless the caller is an admin. */
+export async function requireAdmin(): Promise<void> {
+  if (!(await isAdmin())) throw new Error("Admin access required");
+}

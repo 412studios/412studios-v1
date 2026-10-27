@@ -6,7 +6,6 @@ import MembershipCards from "./MembershipCards";
 import Photo from "./Photo";
 import {
   CLOSE_HOUR,
-  ENGINEER_FEE_PER_HOUR,
   OPEN_HOUR,
   bestSavings,
   dateLabel,
@@ -14,7 +13,6 @@ import {
   hourlyTotal,
   money,
   nextDates,
-  studios,
   taxOn,
   torontoNow,
   type MembershipHours,
@@ -28,7 +26,17 @@ const slots = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, k) => OPEN_HOUR
 
 export type Visitor = { signedIn: boolean; email: string | null };
 
-export default function BookingFlow({ initialPlan, initialStudio, visitor }: { initialPlan: Plan; initialStudio?: string; visitor: Visitor }) {
+export default function BookingFlow({
+  initialPlan,
+  initialStudio,
+  visitor,
+  studios,
+}: {
+  initialPlan: Plan;
+  initialStudio?: string;
+  visitor: Visitor;
+  studios: Studio[]; // current rates, read from the database by the page
+}) {
   const [plan, setPlan] = useState<Plan>(initialPlan);
 
   // Keep the URL shareable (/book?plan=membership) without a navigation.
@@ -43,18 +51,18 @@ export default function BookingFlow({ initialPlan, initialStudio, visitor }: { i
     <div>
       <div role="tablist" aria-label="How do you want to book?" className="mb-8 grid grid-cols-2 rounded-2xl border-2 border-ink bg-white p-1 sm:inline-grid sm:w-auto">
         <Tab active={plan === "hourly"} onClick={() => setPlan("hourly")} title="Single session" sub="Pay by the hour" />
-        <Tab active={plan === "membership"} onClick={() => setPlan("membership")} title="Membership" sub={`Save up to ${bestSavings()}%`} />
+        <Tab active={plan === "membership"} onClick={() => setPlan("membership")} title="Membership" sub={`Save up to ${bestSavings(studios)}%`} />
       </div>
 
       {plan === "hourly" ? (
-        <HourlyBooking initialStudio={initialStudio} visitor={visitor} onSwitchToMembership={() => setPlan("membership")} />
+        <HourlyBooking studios={studios} initialStudio={initialStudio} visitor={visitor} onSwitchToMembership={() => setPlan("membership")} />
       ) : (
         <div>
           <p className="mb-6 max-w-xl text-lg">
             Prepay 8 or 16 hours at a lower rate, then book them online in 4-hour sessions whenever you like.
             {visitor.signedIn ? "" : " You’ll log in or create an account first, so the hours are tied to you."}
           </p>
-          <MembershipCards />
+          <MembershipCards studios={studios} />
         </div>
       )}
     </div>
@@ -78,7 +86,17 @@ function Tab({ active, onClick, title, sub }: { active: boolean; onClick: () => 
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function HourlyBooking({ initialStudio, visitor, onSwitchToMembership }: { initialStudio?: string; visitor: Visitor; onSwitchToMembership: () => void }) {
+function HourlyBooking({
+  studios,
+  initialStudio,
+  visitor,
+  onSwitchToMembership,
+}: {
+  studios: Studio[];
+  initialStudio?: string;
+  visitor: Visitor;
+  onSwitchToMembership: () => void;
+}) {
   const firstOpen = studios.find((s) => s.available)!.id;
   const [studioId, setStudioId] = useState<StudioId>(
     studios.find((s) => s.id === initialStudio && s.available)?.id ?? firstOpen,
@@ -229,7 +247,7 @@ function HourlyBooking({ initialStudio, visitor, onSwitchToMembership }: { initi
           <label className="mt-5 flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border-2 border-ink bg-white px-4 text-sm font-semibold">
             <input type="checkbox" checked={engineer} onChange={(e) => setEngineer(e.target.checked)} className="h-5 w-5 accent-black" />
             Add an in-house engineer
-            <span className="ml-auto font-bold">+{money(ENGINEER_FEE_PER_HOUR)}/hr</span>
+            <span className="ml-auto font-bold">+{money(studio.engineer)}/hr</span>
           </label>
         </section>
 
@@ -248,7 +266,9 @@ function HourlyBooking({ initialStudio, visitor, onSwitchToMembership }: { initi
               className="min-h-12 w-full rounded-xl border-2 border-ink bg-white px-4 text-base sm:max-w-md"
             />
             <p className="mt-2 text-sm text-neutral-600">
-              No account needed. <a href="/api/auth/login?post_login_redirect_url=%2Fbook" className="font-bold underline">Members, log in</a> to use your hours.
+              No account needed.{" "}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Kinde's login is a route handler; it needs a full navigation, not a client transition */}
+              <a href="/api/auth/login?post_login_redirect_url=%2Fbook" className="font-bold underline">Members, log in</a> to use your hours.
             </p>
           </section>
         )}
@@ -262,7 +282,7 @@ function HourlyBooking({ initialStudio, visitor, onSwitchToMembership }: { initi
             <Row k="Studio" v={studio.name} />
             <Row k="When" v={range ? when : "Pick your hours"} />
             <Row k="Duration" v={`${hours} hr${hours === 1 ? "" : "s"}`} />
-            {engineer && <Row k="Engineer" v={`${money(ENGINEER_FEE_PER_HOUR)}/hr`} />}
+            {engineer && <Row k="Engineer" v={`${money(studio.engineer)}/hr`} />}
             <Row k="Subtotal" v={money(subtotal)} />
             <Row k="HST (13%)" v={money(tax, true)} />
           </dl>

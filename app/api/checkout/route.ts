@@ -2,9 +2,9 @@ import { currentMember } from "@/lib/auth";
 import { SlotTakenError, bookedHours, createPendingBooking, stripe } from "@/lib/bookings";
 import { dbConfigured } from "@/lib/db";
 import { createPendingMembership, ensureStripeCustomer, ensureUser, guestUser } from "@/lib/members";
+import { loadStudios } from "@/lib/pricing";
 import {
   CLOSE_HOUR,
-  ENGINEER_FEE_PER_HOUR,
   OPEN_HOUR,
   TAX_RATE,
   chargeCents,
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     return bad("Invalid request");
   }
 
-  const studio = getStudio(body.studio);
+  const studio = getStudio(body.studio, await loadStudios());
   if (!studio) return bad("Unknown studio");
   if (!studio.available) return bad(`${studio.name} is currently unavailable`);
 
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     }
     name = `${studio.name} — ${hours}hr session`;
     description = `${dateLabel(date, { weekday: "short", month: "short", day: "numeric" })}, ${hourLabel(start)}–${hourLabel(end)}${
-      engineer ? ` (incl. engineer $${ENGINEER_FEE_PER_HOUR}/hr)` : ""
+      engineer ? ` (incl. engineer $${studio.engineer}/hr)` : ""
     }, incl. ${TAX_RATE * 100}% HST`;
   } else {
     return bad("Unknown booking type");

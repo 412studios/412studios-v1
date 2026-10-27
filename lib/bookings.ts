@@ -20,7 +20,7 @@ export function stripe() {
 const holdCutoff = () => new Date(Date.now() - HOLD_MINUTES * 60_000);
 
 /** Rows that currently block slots: paid bookings, plus pending ones still inside their hold. */
-const blocking = (room: number, date: number) => ({
+export const blocking = (room: number, date: number) => ({
   roomId: room,
   date,
   OR: [{ status: "success" }, { status: "pending", createdAt: { gte: holdCutoff() } }],
@@ -60,7 +60,13 @@ export type NewBooking = {
  * Inserts a pending booking after a server-side overlap check. The advisory lock makes
  * the check-then-insert atomic per studio and day, which the old site never had.
  */
-export async function createPendingBooking(b: NewBooking) {
+export const createPendingBooking = (b: NewBooking) =>
+  insertBooking(b, "pending", b.type === "membership" ? "none" : (process.env.STRIPE_PRICE_ID_STANDARD_BOOKING ?? "site-v2"));
+
+/** An owner booking on a customer's behalf from /admin: paid (or free) outside Stripe, so it is "success" at once. */
+export const createAdminBooking = (b: NewBooking) => insertBooking(b, "success", "admin");
+
+async function insertBooking(b: NewBooking, status: "pending" | "success", stripeProductId: string) {
   const prisma = db();
   if (!prisma) throw new Error("Database not configured");
   const room = roomId(b.studio);
@@ -83,14 +89,14 @@ export async function createPendingBooking(b: NewBooking) {
         type: b.type,
         startTime: startSlot,
         endTime: endSlot,
-        status: "pending",
+        status,
         userId: b.userId,
-        stripeProductId: b.type === "membership" ? "none" : (process.env.STRIPE_PRICE_ID_STANDARD_BOOKING ?? "site-v2"),
+        stripeProductId,
         totalHours: hours,
         totalPrice: b.price,
         engineerTotal: b.engineer ? hours : -1,
         engineerStart: b.engineer ? startSlot : -1,
-        engineerStatus: "pending",
+        engineerStatus: status,
         addDetails: "",
       },
     });

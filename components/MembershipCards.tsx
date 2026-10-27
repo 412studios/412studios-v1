@@ -3,9 +3,9 @@
 import { useState } from "react";
 import BuyButton from "./BuyButton";
 import Photo from "./Photo";
-import { membershipSavings, money, studios, type MembershipHours } from "@/lib/studios";
+import { membershipSavings, money, type MembershipHours, type Studio } from "@/lib/studios";
 
-export default function MembershipCards({ dark = false }: { dark?: boolean }) {
+export default function MembershipCards({ studios, dark = false }: { studios: Studio[]; dark?: boolean }) {
   const [hours, setHours] = useState<MembershipHours>(16);
   const border = dark ? "border-cream" : "border-ink";
 

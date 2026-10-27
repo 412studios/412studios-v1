@@ -1,5 +1,7 @@
-// Source of truth for pricing. The checkout API recomputes totals from here,
-// so the browser can never set its own price.
+// Default pricing, and the seed values for the Pricing table. The admin (/admin/pricing) writes
+// that table and lib/pricing.ts lays its rows over these constants, so what follows is what the
+// site charges only until an owner changes it there. The checkout API recomputes totals on the
+// server, so the browser can never set its own price.
 // Hourly and membership rates are from the owners' pricing sheet (Oct 2026), which lowered the
 // live site's prices. Day rates are still the live site's; the sheet doesn't mention them.
 
@@ -12,6 +14,7 @@ export type Studio = {
   hourly: number;
   day: number;
   memberships: Record<MembershipHours, number>;
+  engineer: number; // per hour, on top of the room
   available: boolean;
   blurb: string;
   photo: string; // key into /public/photos and lib/blur
@@ -30,6 +33,7 @@ export const studios: Studio[] = [
     hourly: 70,
     day: 500,
     memberships: { 8: 400, 16: 720 },
+    engineer: ENGINEER_FEE_PER_HOUR,
     available: true,
     blurb: "The flagship suite. Control room, live room, lounge and kitchen.",
     photo: "studio-a",
@@ -40,6 +44,7 @@ export const studios: Studio[] = [
     hourly: 50,
     day: 400,
     memberships: { 8: 280, 16: 480 },
+    engineer: ENGINEER_FEE_PER_HOUR,
     available: false, // matches "Currently Unavailable" on the live site
     blurb: "Piano, guitar amps and warm treated walls for writing and tracking.",
     photo: "studio-b",
@@ -50,13 +55,14 @@ export const studios: Studio[] = [
     hourly: 30,
     day: 250,
     memberships: { 8: 200, 16: 320 },
+    engineer: ENGINEER_FEE_PER_HOUR,
     available: true,
     blurb: "Synth-stacked production room. Best value for beats and writing.",
     photo: "studio-c",
   },
 ];
 
-export const getStudio = (id: string) => studios.find((s) => s.id === id);
+export const getStudio = (id: string, list: Studio[] = studios) => list.find((s) => s.id === id);
 
 export const money = (n: number, cents = false) =>
   new Intl.NumberFormat("en-CA", {
@@ -75,7 +81,7 @@ export const hourLabel = (h: number) => {
 
 export function hourlyTotal(studio: Studio, hours: number, engineer: boolean) {
   const rate = Math.min(studio.hourly * hours, studio.day * Math.ceil(hours / 12));
-  return rate + (engineer ? ENGINEER_FEE_PER_HOUR * hours : 0);
+  return rate + (engineer ? studio.engineer * hours : 0);
 }
 
 /** HST on a pre-tax dollar amount, to the cent. */
@@ -87,10 +93,11 @@ export const chargeCents = (dollars: number) => Math.round(dollars * 100 * (1 + 
 export const membershipSavings = (s: Studio, h: MembershipHours) =>
   Math.round((1 - s.memberships[h] / (s.hourly * h)) * 100);
 
-export const bestSavings = () =>
-  Math.max(...studios.filter((s) => s.available).flatMap((s) => [membershipSavings(s, 8), membershipSavings(s, 16)]));
+export const bestSavings = (list: Studio[] = studios) =>
+  Math.max(...list.filter((s) => s.available).flatMap((s) => [membershipSavings(s, 8), membershipSavings(s, 16)]));
 
-export const cheapestMembership = () => Math.min(...studios.filter((s) => s.available).map((s) => s.memberships[8]));
+export const cheapestMembership = (list: Studio[] = studios) =>
+  Math.min(...list.filter((s) => s.available).map((s) => s.memberships[8]));
 
 /** The studio's wall clock, regardless of where the visitor's phone is. */
 export function torontoNow(d = new Date()) {
