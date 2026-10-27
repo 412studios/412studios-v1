@@ -5,17 +5,35 @@ import Photo from "@/components/Photo";
 import SpaceExplorer from "@/components/SpaceExplorer";
 import { loadStudios } from "@/lib/pricing";
 import { bestSavings, cheapestMembership, money } from "@/lib/studios";
+import { FaApple, FaInstagram, FaSpotify, FaTiktok, FaYoutube } from "react-icons/fa";
 
-const artists = [
+// Same links and icons as the old site's roster.
+const icons = { Instagram: FaInstagram, TikTok: FaTiktok, YouTube: FaYoutube, Spotify: FaSpotify, "Apple Music": FaApple };
+type Platform = keyof typeof icons;
+
+const artists: { name: string; photo: string; bio: string; links: [Platform, string][] }[] = [
   {
     name: "Rans Gundo",
     photo: "artist-rans",
     bio: "Alternative rock artist from Mississauga, Ontario. Jangly, guitar-driven music with emotional depth and strong melodic instincts.",
+    links: [
+      ["Instagram", "https://www.instagram.com/ransgundo/"],
+      ["YouTube", "https://www.youtube.com/@ransgundo1064"],
+      ["Spotify", "https://open.spotify.com/artist/3cUNSMHILGtCTtonHb5znl"],
+      ["Apple Music", "https://music.apple.com/us/artist/rans-gundo/1857141015"],
+    ],
   },
   {
     name: "Sainty",
     photo: "artist-sainty",
     bio: "Canadian alternative pop artist from Mississauga, Ontario. Cinematic, emotionally honest music rooted in personal experience.",
+    links: [
+      ["Instagram", "https://www.instagram.com/saintydaisy/"],
+      ["TikTok", "https://www.tiktok.com/@saintydaisy"],
+      ["YouTube", "https://www.youtube.com/@saintydaisy"],
+      ["Spotify", "https://open.spotify.com/artist/0N8qkwDJQxxGi4Dj1cTZ4Z"],
+      ["Apple Music", "https://music.apple.com/us/artist/sainty/1578969222"],
+    ],
   },
 ];
 
@@ -134,6 +152,25 @@ export default async function Home() {
               <div className="p-5">
                 <h3 className="display text-3xl">{a.name}</h3>
                 <p className="mt-2 text-sm">{a.bio}</p>
+                <ul className="mt-4 flex flex-wrap gap-2">
+                  {a.links.map(([platform, href]) => {
+                    const Icon = icons[platform];
+                    return (
+                      <li key={platform}>
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`${a.name} on ${platform}`}
+                          className="flex min-h-9 items-center gap-1.5 rounded-full border-2 border-ink px-3 text-xs font-black uppercase transition-colors hover:bg-ink hover:text-brand"
+                        >
+                          <Icon className="h-4 w-4" aria-hidden />
+                          {platform}
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             </article>
           ))}

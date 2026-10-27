@@ -1,3 +1,13 @@
+import { FaInstagram, FaSoundcloud, FaTiktok, FaYoutube } from "react-icons/fa";
+
+// The studio's own channels, as linked from the old site.
+const socials = [
+  { label: "Instagram", href: "https://www.instagram.com/itsfouronetwo/", Icon: FaInstagram },
+  { label: "TikTok", href: "https://www.tiktok.com/@412.studios", Icon: FaTiktok },
+  { label: "YouTube", href: "https://www.youtube.com/channel/UCiIHqiNLRHtjsaKBVRh0ipQ", Icon: FaYoutube },
+  { label: "SoundCloud", href: "https://soundcloud.com/412studios", Icon: FaSoundcloud },
+];
+
 export default function Footer() {
   return (
     <footer id="contact" className="border-t border-ink bg-ink text-cream">
@@ -13,7 +23,21 @@ export default function Footer() {
         <div className="space-y-2 sm:text-right">
           <p><a className="underline" href="mailto:Info@412studios.ca">Info@412studios.ca</a></p>
           <p><a className="underline" href="tel:+16475402321">647-540-2321</a></p>
-          <p className="text-sm">Instagram @itsfouronetwo · @412.studios · TikTok @the412show</p>
+          <ul className="flex gap-2 sm:justify-end">
+            {socials.map(({ label, href, Icon }) => (
+              <li key={label}>
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`412 Studios on ${label}`}
+                  className="grid h-11 w-11 place-items-center rounded-full border-2 border-cream/40 transition-colors hover:border-brand hover:bg-brand hover:text-ink"
+                >
+                  <Icon className="h-5 w-5" aria-hidden />
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </footer>
