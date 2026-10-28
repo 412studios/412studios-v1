@@ -152,9 +152,9 @@ export default async function Home() {
         <h2 className="display text-4xl sm:text-5xl">Artists</h2>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           {artists.map((a) => (
-            <article key={a.name} className="flex overflow-hidden rounded-2xl border-2 border-ink bg-white">
+            <article key={a.name} className="flex flex-col overflow-hidden rounded-2xl border-2 border-ink bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/photos/${a.photo}.webp`} alt={a.name} loading="lazy" className="w-32 shrink-0 object-cover object-top sm:w-44" />
+              <img src={`/photos/${a.photo}.webp`} alt={a.name} loading="lazy" className="aspect-[4/3] w-full object-cover object-top" />
               <div className="p-5">
                 <h3 className="display text-3xl">{a.name}</h3>
                 {a.bio.map((paragraph) => (
