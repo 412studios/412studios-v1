@@ -11,11 +11,14 @@ import { FaApple, FaInstagram, FaSpotify, FaTiktok, FaYoutube } from "react-icon
 const icons = { Instagram: FaInstagram, TikTok: FaTiktok, YouTube: FaYoutube, Spotify: FaSpotify, "Apple Music": FaApple };
 type Platform = keyof typeof icons;
 
-const artists: { name: string; photo: string; bio: string; links: [Platform, string][] }[] = [
+const artists: { name: string; photo: string; bio: string[]; links: [Platform, string][] }[] = [
   {
     name: "Rans Gundo",
     photo: "artist-rans",
-    bio: "Alternative rock artist from Mississauga, Ontario. Jangly, guitar-driven music with emotional depth and strong melodic instincts.",
+    bio: [
+      "Rans Gundo is an alternative rock artist from Mississauga, Ontario, making jangly, guitar-driven music with emotional depth and strong melodic instincts. Inspired by indie pioneers and raw storytellers, his sound balances introspection with energy.",
+      "His percussive guitar style and dynamic instrumentation create tracks that feel immediate and powerful. Rans brings authenticity and live-ready intensity to everything he releases.",
+    ],
     links: [
       ["Instagram", "https://www.instagram.com/ransgundo/"],
       ["YouTube", "https://www.youtube.com/@ransgundo1064"],
@@ -26,7 +29,10 @@ const artists: { name: string; photo: string; bio: string; links: [Platform, str
   {
     name: "Sainty",
     photo: "artist-sainty",
-    bio: "Canadian alternative pop artist from Mississauga, Ontario. Cinematic, emotionally honest music rooted in personal experience.",
+    bio: [
+      "Sainty is a Canadian alternative pop artist from Mississauga, Ontario, creating cinematic, emotionally honest music rooted in personal experience. Her songs live in intimate spaces, turning toxic love, messy freedom and vulnerability into haunting yet hopeful anthems.",
+      "With confessional lyrics and self-aware storytelling, she captures life as it happens. Sainty transforms broken moments into soundtracks that feel personal, raw and deeply connected.",
+    ],
     links: [
       ["Instagram", "https://www.instagram.com/saintydaisy/"],
       ["TikTok", "https://www.tiktok.com/@saintydaisy"],
@@ -148,10 +154,14 @@ export default async function Home() {
           {artists.map((a) => (
             <article key={a.name} className="flex overflow-hidden rounded-2xl border-2 border-ink bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/photos/${a.photo}.webp`} alt={a.name} loading="lazy" className="w-32 shrink-0 object-cover sm:w-44" />
+              <img src={`/photos/${a.photo}.webp`} alt={a.name} loading="lazy" className="w-32 shrink-0 object-cover object-top sm:w-44" />
               <div className="p-5">
                 <h3 className="display text-3xl">{a.name}</h3>
-                <p className="mt-2 text-sm">{a.bio}</p>
+                {a.bio.map((paragraph) => (
+                  <p key={paragraph.slice(0, 24)} className="mt-2 text-sm leading-relaxed">
+                    {paragraph}
+                  </p>
+                ))}
                 <ul className="mt-4 flex flex-wrap gap-2">
                   {a.links.map(([platform, href]) => {
                     const Icon = icons[platform];
